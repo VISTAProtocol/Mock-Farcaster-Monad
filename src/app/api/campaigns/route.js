@@ -12,7 +12,12 @@ export async function GET(request) {
   try {
     const res = await fetch(
       `${dashboardUrl}/api/campaigns/active?userWallet=${encodeURIComponent(userWallet)}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${process.env.VISTA_DASHBOARD_TOKEN || ""}`,
+        },
+      },
     );
 
     if (!res.ok) {
@@ -20,8 +25,11 @@ export async function GET(request) {
     }
 
     const data = await res.json();
-    return Response.json({ campaigns: data.campaigns ?? [] });
-  } catch {
+    return Response.json({
+      campaigns: Array.isArray(data) ? data : (data.campaigns ?? []),
+    });
+  } catch (err) {
+    console.error("[API] Failed to fetch campaigns:", err);
     return Response.json({ campaigns: [] });
   }
 }

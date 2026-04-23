@@ -12,7 +12,6 @@ export default function TrendingSection({
   channels,
   links,
   currentUser,
-  vistaState,
 }) {
   const walletAddress = currentUser?.address;
 
@@ -126,7 +125,7 @@ export default function TrendingSection({
             </Link>
           </div>
         )}
-      <VistaEarningsPanel vistaState={vistaState} userWallet={currentUser?.address} />
+      <VistaEarningsPanel userWallet={currentUser?.address} />
       {/* </div> */}
     </aside>
   );

@@ -5,8 +5,6 @@ import HeroSection from "@/modules/home/components/HeroSection";
 import NavBar from "@/modules/home/components/NavBar";
 import TrendingSection from "@/modules/home/components/TrendingSection";
 import { CHANNELS, FEED_POSTS, RIGHT_LINKS, SIDEBAR_ITEMS } from "@/modules/home/components/constants";
-import { useVista } from "@/modules/vista/useVista";
-
 function toWalletUser(address) {
   return {
     displayName: "Wallet User",
@@ -18,13 +16,6 @@ function toWalletUser(address) {
 export default function HomePage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
-
-  const activeCampaignId = campaigns[0]?.campaign_id_onchain ?? null;
-  const vistaState = useVista({
-    userWallet: currentUser?.address,
-    zoneId: "vista-content-zone",
-    campaignId: activeCampaignId,
-  });
 
   useEffect(() => {
     let isActive = true;
@@ -80,7 +71,11 @@ export default function HomePage() {
         <NavBar items={SIDEBAR_ITEMS} isLoggedIn={Boolean(currentUser)} onLogout={handleLogout} />
 
         <section id="discover" className="min-w-0">
-          <HeroSection posts={FEED_POSTS} ads={campaigns} />
+          <HeroSection
+            posts={FEED_POSTS}
+            ads={campaigns}
+            userWallet={currentUser?.address}
+          />
         </section>
 
         <section className="min-w-0">
@@ -88,7 +83,6 @@ export default function HomePage() {
             channels={CHANNELS}
             links={RIGHT_LINKS}
             currentUser={currentUser}
-            vistaState={vistaState}
           />
         </section>
       </main>
