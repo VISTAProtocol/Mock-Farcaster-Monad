@@ -1,5 +1,5 @@
 import { Heart, MessageCircle, Repeat2, Share } from "lucide-react";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { VistaAdCard } from "@/modules/vista/components/VistaAdCard";
 import { VistaRegisterBanner } from "@/modules/vista/components/VistaRegisterBanner";
 import { useActiveCampaigns } from "@/modules/vista/hooks/useActiveCampaigns";
@@ -57,9 +57,8 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
 
       <div id="vista-content-zone">
         {posts.map((post, i) => (
-          <>
+          <Fragment key={`${post.handle}-${post.timeAgo}-${i}`}>
             <article
-              key={`${post.handle}-${post.timeAgo}-${i}`}
               className="border-b border-white/10 px-5 py-4"
             >
               <div className="flex items-start gap-3">
@@ -114,7 +113,7 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
                 />
               ) : null;
             })()}
-          </>
+          </Fragment>
         ))}
       </div>
     </section>
