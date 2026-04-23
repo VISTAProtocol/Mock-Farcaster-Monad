@@ -55,6 +55,9 @@ declare class Vista {
     private lastValidSeconds;
     private lastScore;
     private isActive;
+    private beforeunloadHandler;
+    private visibilitychangeHandler;
+    private listenersSetup;
     init(config: VistaConfig): void;
     attachZone(elementId: string): void;
     detachZone(): void;
@@ -64,6 +67,7 @@ declare class Vista {
     private handleResponse;
     private postSessionEnd;
     private setupSessionEndListeners;
+    private removeSessionEndListeners;
 }
 declare const vista: Vista;
 

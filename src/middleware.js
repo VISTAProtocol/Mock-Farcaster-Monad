@@ -3,7 +3,7 @@ import { SESSION_COOKIE_NAME } from "@/lib/auth/constants";
 
 const protectedPrefixes = ["/dashboard"];
 
-export function proxy(request) {
+export function middleware(request) {
   const pathname = request.nextUrl.pathname;
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
