@@ -1,9 +1,10 @@
 "use client";
-import { Vista } from "vista-protocol";
+import { Vista } from "@/lib/vista-sdk";
 
 export function VistaRegisterBanner({ userWallet }) {
   const handleRegisterClick = () => {
-    const dashboardUrl = process.env.NEXT_PUBLIC_VISTA_DASHBOARD_URL || "http://localhost:3031";
+    const dashboardUrl =
+      process.env.NEXT_PUBLIC_VISTA_DASHBOARD_URL || "http://localhost:3031";
     Vista.showOnboardingModal({ dashboardUrl, wallet: userWallet });
   };
 

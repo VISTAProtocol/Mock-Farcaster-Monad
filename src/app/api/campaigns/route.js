@@ -19,6 +19,7 @@ export async function GET(request) {
         },
       },
     );
+    console.log("RERULT", res);
 
     if (!res.ok) {
       return Response.json({ campaigns: [] });

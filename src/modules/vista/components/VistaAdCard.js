@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Vista } from "vista-protocol";
+import { Vista } from "@/lib/vista-sdk";
 import { ExternalLink } from "lucide-react";
 
 export function VistaAdCard({ campaign, userWallet, onEarn }) {
