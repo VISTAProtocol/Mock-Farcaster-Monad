@@ -68,6 +68,7 @@ declare class Vista {
     private postSessionEnd;
     private setupSessionEndListeners;
     private removeSessionEndListeners;
+    showOnboardingModal(options: { dashboardUrl: string; wallet?: string }): void;
 }
 declare const vista: Vista;
 

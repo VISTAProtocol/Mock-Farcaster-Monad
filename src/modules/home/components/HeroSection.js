@@ -1,5 +1,5 @@
 import { Heart, MessageCircle, Repeat2, Share } from "lucide-react";
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { VistaAdCard } from "@/modules/vista/components/VistaAdCard";
 import { VistaRegisterBanner } from "@/modules/vista/components/VistaRegisterBanner";
 import { useActiveCampaigns } from "@/modules/vista/hooks/useActiveCampaigns";
@@ -9,6 +9,16 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
   const { campaigns: vistaCampaigns } = useActiveCampaigns(userWallet);
   const { isRegistered } = useVistaUser(userWallet);
   const [totalEarned, setTotalEarned] = useState(0);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data === "VISTA_ONBOARDING_COMPLETE") {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   const getVistaAdForIndex = (index) => {
     if ((index + 1) % 10 !== 0) return null;
@@ -53,14 +63,12 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
         </div>
       </div>
 
-      {isRegistered === false && <VistaRegisterBanner />}
+      {isRegistered === false && <VistaRegisterBanner userWallet={userWallet} />}
 
       <div id="vista-content-zone">
         {posts.map((post, i) => (
           <Fragment key={`${post.handle}-${post.timeAgo}-${i}`}>
-            <article
-              className="border-b border-white/10 px-5 py-4"
-            >
+            <article className="border-b border-white/10 px-5 py-4">
               <div className="flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-zinc-700 text-sm font-bold text-white">
                   {post.author.slice(0, 1).toUpperCase()}

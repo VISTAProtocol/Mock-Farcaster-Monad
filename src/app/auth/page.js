@@ -12,6 +12,7 @@ import {
 } from "wagmi";
 import { MONAD_CHAIN_ID } from "@/lib/auth/monad-chain";
 import { buildWalletAuthMessage } from "@/lib/auth/sign-message";
+import { Vista } from "vista-protocol";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -203,6 +204,20 @@ export default function AuthPage() {
         throw new Error(verifyPayload?.error || "Verify failed");
       }
 
+      // Check if user is registered in Vista Dashboard
+      try {
+        const userCheck = await fetch(`/api/users?userWallet=${encodeURIComponent(address)}`);
+        if (!userCheck.ok) {
+          const dashboardUrl = process.env.NEXT_PUBLIC_VISTA_DASHBOARD_URL || "http://localhost:3031";
+          Vista.showOnboardingModal({ dashboardUrl, wallet: address });
+          router.push("/");
+          router.refresh();
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check user registration status:", err);
+      }
+
       router.push("/");
       router.refresh();
     } catch {
@@ -225,29 +240,31 @@ export default function AuthPage() {
         <p className="mt-2 text-sm text-zinc-400">Connect wallet, sign challenge, lalu session backend aktif otomatis.</p>
 
         <div className="mt-6 grid gap-3">
-          {displayedConnectors.map((connector) => (
+          {!isConnected ? (
             (() => {
+              const connector = displayedConnectors[0];
+              if (!connector) return <p className="text-sm text-zinc-500">No wallet detected.</p>;
+              
               const isAvailable = connectorAvailability[connector.uid] ?? true;
               const installUrl = getInstallUrl(connector.name);
               const shouldShowInstall = !isAvailable && Boolean(installUrl);
 
               return (
-            <button
-              key={connector.uid}
-              type="button"
-              onClick={() => handleConnect(connector)}
-              disabled={isConnecting || isConnected}
-              className="rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isConnecting
-                ? "Connecting..."
-                : shouldShowInstall
-                  ? `Install ${connector.name}`
-                  : `Connect ${connector.name}`}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleConnect(connector)}
+                  disabled={isConnecting}
+                  className="rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isConnecting
+                    ? "Connecting..."
+                    : shouldShowInstall
+                      ? `Install ${connector.name}`
+                      : "Connect Wallet"}
+                </button>
               );
             })()
-          ))}
+          ) : null}
 
           <p className="text-xs text-zinc-500">Monad diprioritaskan: setelah connect, app akan meminta switch ke chain Monad otomatis.</p>
 
