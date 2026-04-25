@@ -7,7 +7,7 @@ import { useVistaUser } from "@/modules/vista/hooks/useVistaUser";
 
 export default function HeroSection({ posts, ads = [], userWallet }) {
   const { campaigns: vistaCampaigns } = useActiveCampaigns(userWallet);
-  const { isRegistered } = useVistaUser(userWallet);
+  useVistaUser(userWallet);
   const [totalEarned, setTotalEarned] = useState(0);
 
   useEffect(() => {
@@ -23,7 +23,6 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
   const getVistaAdForIndex = (index) => {
     if ((index + 1) % 10 !== 0) return null;
     if (!vistaCampaigns || vistaCampaigns.length === 0) return null;
-    if (!isRegistered) return null;
 
     const campaignIndex = Math.floor((index + 1) / 10) - 1;
     const campaign = vistaCampaigns[campaignIndex % vistaCampaigns.length];
@@ -63,7 +62,7 @@ export default function HeroSection({ posts, ads = [], userWallet }) {
         </div>
       </div>
 
-      {isRegistered === false && <VistaRegisterBanner userWallet={userWallet} />}
+      {/* {isRegistered === false && <VistaRegisterBanner userWallet={userWallet} />} */}
 
       <div id="vista-content-zone">
         {posts.map((post, i) => (

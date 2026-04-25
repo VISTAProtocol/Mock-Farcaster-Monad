@@ -10,27 +10,24 @@ export async function GET(request) {
     process.env.NEXT_PUBLIC_VISTA_DASHBOARD_URL ?? "http://localhost:3031";
 
   try {
+    // Pass zero-address so the dashboard returns ALL active campaigns without
+    // applying user-targeting filters. Publisher-side apps should show every
+    // active ad — targeting is an advertiser preference for routing, not a
+    // hard gate for which viewers see the ad.
     const res = await fetch(
-      `${dashboardUrl}/api/campaigns/active?userWallet=${encodeURIComponent(userWallet)}`,
-      {
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${process.env.VISTA_DASHBOARD_TOKEN || ""}`,
-        },
-      },
+      `${dashboardUrl}/api/campaigns/active?userWallet=0x0000000000000000000000000000000000000000`,
+      { cache: "no-store" },
     );
-    console.log("RERULT", res);
 
     if (!res.ok) {
       return Response.json({ campaigns: [] });
     }
 
     const data = await res.json();
-    return Response.json({
-      campaigns: Array.isArray(data) ? data : (data.campaigns ?? []),
-    });
+    const campaigns = Array.isArray(data) ? data : (data.campaigns ?? []);
+    return Response.json({ campaigns });
   } catch (err) {
-    console.error("[API] Failed to fetch campaigns:", err);
+    console.error("[API/campaigns] Failed to fetch campaigns:", err);
     return Response.json({ campaigns: [] });
   }
 }

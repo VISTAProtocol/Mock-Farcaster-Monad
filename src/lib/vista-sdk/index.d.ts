@@ -49,6 +49,10 @@ interface OnboardingParams {
     wallet: string;
     dashboardUrl?: string;
 }
+interface EarningOverlayParams {
+    campaignTitle?: string;
+    targetElement?: HTMLElement | null;
+}
 
 declare class Vista {
     private config;
@@ -66,12 +70,18 @@ declare class Vista {
     private isFullscreenActive;
     private fullscreenchangeHandler;
     private trackedElementId;
+    private overlayIntervalId;
+    private overlayFullscreenHandler;
+    private overlayScrollHandler;
     init(config: VistaConfig): void;
     attachZone(elementId: string): void;
     detachZone(): void;
     onEarn(callback: (data: EarnCallbackData) => void): void;
     getStatus(): VistaStatus;
     showOnboardingModal(params: OnboardingParams): void;
+    showEarningOverlay(params?: EarningOverlayParams): void;
+    private removeEarningOverlay;
+    private animateValue;
     private buildPayload;
     private handleResponse;
     private postSessionEnd;
@@ -110,4 +120,4 @@ interface WalletSignInParams {
 }
 declare function performWalletSignIn(params: WalletSignInParams): Promise<void>;
 
-export { type AttentionSignals, type EarnCallbackData, type HeartbeatPayload, type HeartbeatResponse, MONAD_CHAIN_ID, MONAD_EXPLORER_URL, MONAD_RPC_URL, type OnboardingParams, vista as Vista, type VistaConfig, type VistaStatus, type WalletAuthMessageParams, type WalletSignInParams, buildWalletAuthMessage, performWalletSignIn };
+export { type AttentionSignals, type EarnCallbackData, type EarningOverlayParams, type HeartbeatPayload, type HeartbeatResponse, MONAD_CHAIN_ID, MONAD_EXPLORER_URL, MONAD_RPC_URL, type OnboardingParams, vista as Vista, type VistaConfig, type VistaStatus, type WalletAuthMessageParams, type WalletSignInParams, buildWalletAuthMessage, performWalletSignIn };

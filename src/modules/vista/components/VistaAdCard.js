@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Vista } from "@/lib/vista-sdk";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Maximize2 } from "lucide-react";
 
 export function VistaAdCard({ campaign, userWallet, onEarn }) {
   const adRef = useRef(null);
   const videoRef = useRef(null);
   const imgRef = useRef(null);
+  const mediaWrapperRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -50,25 +51,20 @@ export function VistaAdCard({ campaign, userWallet, onEarn }) {
   useEffect(() => {
     const handler = () => {
       const fsEl = document.fullscreenElement;
-      const mediaEl = isVideo ? videoRef.current : imgRef.current;
+      const wrapper = mediaWrapperRef.current;
       setIsFullscreen(
-        !!(
-          fsEl &&
-          (fsEl === mediaEl ||
-            fsEl.contains(mediaEl) ||
-            (mediaEl && mediaEl.contains(fsEl)))
-        ),
+        !!(fsEl && wrapper && (fsEl === wrapper || wrapper.contains(fsEl))),
       );
     };
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
-  }, [isVideo]);
+  }, []);
 
   const handleExpandClick = async () => {
-    const mediaEl = isVideo ? videoRef.current : imgRef.current;
-    if (!mediaEl) return;
+    const container = mediaWrapperRef.current;
+    if (!container) return;
     try {
-      await mediaEl.requestFullscreen();
+      await container.requestFullscreen();
     } catch (err) {
       console.warn("[VISTA] requestFullscreen failed:", err);
     }
@@ -82,11 +78,14 @@ export function VistaAdCard({ campaign, userWallet, onEarn }) {
         oracleUrl: process.env.NEXT_PUBLIC_VISTA_ORACLE_URL,
         campaignId: campaign.campaign_id_onchain,
         publisherWallet: process.env.NEXT_PUBLIC_VISTA_PUBLISHER_WALLET,
-        requireFullscreen: true,
       });
       Vista.attachZone(adId);
       Vista.onEarn((data) => {
         if (onEarn) onEarn(data);
+      });
+      Vista.showEarningOverlay({
+        campaignTitle: campaign.title,
+        targetElement: adRef.current,
       });
       setIsTracking(true);
       console.log("[VISTA] Tracking started for:", campaign.title);
@@ -135,19 +134,22 @@ export function VistaAdCard({ campaign, userWallet, onEarn }) {
           {isTracking && (
             <p className="mt-0.5 text-xs text-green-400 flex items-center gap-1">
               <span className="inline-flex h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              {isFullscreen ? "Attention verified" : "Expand to earn USDC"}
+              {isFullscreen ? "Attention verified" : "Earning USDC"}
             </p>
           )}
 
           <p className="mt-2 text-sm text-zinc-300">Watch to earn USDC</p>
 
           {campaign.creative_url && (
-            <div className="mt-4 relative overflow-hidden rounded-2xl border border-green-500/20">
+            <div
+              ref={mediaWrapperRef}
+              className={`mt-4 relative overflow-hidden ${isFullscreen ? "bg-black" : "rounded-2xl border border-green-500/20"}`}
+            >
               {isVideo ? (
                 <video
                   ref={videoRef}
                   src={campaign.creative_url}
-                  className="w-full max-h-80 object-cover"
+                  className={`w-full object-contain ${isFullscreen ? "h-screen max-h-none" : "max-h-80 object-cover"}`}
                   muted
                   loop
                   playsInline
@@ -158,7 +160,7 @@ export function VistaAdCard({ campaign, userWallet, onEarn }) {
                   ref={imgRef}
                   src={campaign.creative_url}
                   alt={campaign.title}
-                  className="w-full max-h-80 object-cover"
+                  className={`w-full object-contain ${isFullscreen ? "h-screen max-h-none" : "max-h-80 object-cover"}`}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
@@ -168,14 +170,10 @@ export function VistaAdCard({ campaign, userWallet, onEarn }) {
               {!isFullscreen && (
                 <button
                   onClick={handleExpandClick}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 hover:bg-black/40 transition group"
+                  title="Open fullscreen"
+                  className="absolute top-2 right-2 flex items-center justify-center rounded-lg bg-black/50 p-1.5 text-white hover:bg-black/70 transition"
                 >
-                  <span className="text-white text-sm font-semibold group-hover:scale-105 transition-transform">
-                    ⛶ Expand to earn
-                  </span>
-                  <span className="text-green-400 text-xs">
-                    Open fullscreen to verify attention
-                  </span>
+                  <Maximize2 className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>

@@ -1,6 +1,36 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getBrowserSupabaseClient } from "@/lib/supabase";
+
+// Animate a numeric value from its previous target to a new target.
+function useCountUp(target, duration = 750) {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = target;
+    if (from === to) return;
+
+    const startTime = performance.now();
+    let rafId;
+    const tick = (now) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(from + (to - from) * eased);
+      if (t < 1) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = to;
+      }
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration]);
+
+  return value;
+}
 
 export default function VistaEarningsPanel({
   vistaState,
@@ -12,7 +42,6 @@ export default function VistaEarningsPanel({
   const {
     earnings = totalEarned,
     validSeconds: vistaValidSeconds = validSeconds,
-    score = 0,
     isActive = isTracking,
     flagged = false,
     tickAmount = 0,
@@ -22,6 +51,104 @@ export default function VistaEarningsPanel({
   const [flash, setFlash] = useState(false);
   const finalEarnings = earnings || totalEarned;
 
+  // Historical stats fetched from Supabase
+  const [stats, setStats] = useState({
+    lastSession: 0,
+    total: 0,
+    unclaimed: 0,
+    loading: true,
+  });
+  const latestSessionIdRef = useRef(null);
+
+  // ── Supabase fetch + Realtime ──────────────────────────────
+  useEffect(() => {
+    const wallet = userWallet?.toLowerCase();
+    if (!wallet) {
+      setStats({ lastSession: 0, total: 0, unclaimed: 0, loading: false });
+      return;
+    }
+
+    const supabase = getBrowserSupabaseClient();
+    if (!supabase) {
+      setStats((s) => ({ ...s, loading: false }));
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadStats() {
+      // 1. Latest session
+      const { data: session } = await supabase
+        .from("sessions")
+        .select("session_id_onchain, seconds_verified")
+        .eq("user_wallet", wallet)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const latestId = session?.session_id_onchain ?? null;
+      latestSessionIdRef.current = latestId;
+
+      // 2. Last-session earnings
+      let lastSession = 0;
+      if (latestId) {
+        const { data: sessionTicks } = await supabase
+          .from("stream_ticks")
+          .select("user_amount")
+          .eq("session_id_onchain", latestId);
+        lastSession = (sessionTicks ?? []).reduce(
+          (sum, t) => sum + Number(t.user_amount ?? 0),
+          0,
+        );
+      }
+
+      // 3. All-time earnings
+      const { data: allTicks } = await supabase
+        .from("stream_ticks")
+        .select("user_amount")
+        .eq("user_wallet", wallet);
+      const total = (allTicks ?? []).reduce(
+        (sum, t) => sum + Number(t.user_amount ?? 0),
+        0,
+      );
+
+      if (!cancelled) {
+        setStats({ lastSession, total, unclaimed: total, loading: false });
+      }
+    }
+
+    void loadStats();
+
+    // Live updates: new ticks inserted while the panel is open
+    const channel = supabase
+      .channel(`vista-panel-${wallet}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "stream_ticks" },
+        (payload) => {
+          const row = payload.new;
+          if (row.user_wallet?.toLowerCase() !== wallet) return;
+          const amount = Number(row.user_amount ?? 0);
+          const isLatest = row.session_id_onchain === latestSessionIdRef.current;
+          setStats((s) => ({
+            ...s,
+            lastSession: isLatest ? s.lastSession + amount : s.lastSession,
+            total: s.total + amount,
+            unclaimed: s.unclaimed + amount,
+          }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [userWallet]);
+
+  // ── Live second counter ───────────────────────────────────
   useEffect(() => {
     setDisplaySeconds(vistaValidSeconds || validSeconds);
   }, [vistaValidSeconds, validSeconds]);
@@ -32,6 +159,7 @@ export default function VistaEarningsPanel({
     return () => clearInterval(id);
   }, [isActive]);
 
+  // ── Earn flash ────────────────────────────────────────────
   useEffect(() => {
     if (tickAmount === 0) return;
     setFlash(true);
@@ -39,6 +167,12 @@ export default function VistaEarningsPanel({
     return () => clearTimeout(t);
   }, [tickAmount]);
 
+  // ── Animated stat values ──────────────────────────────────
+  const animLastSession = useCountUp(stats.lastSession);
+  const animTotal       = useCountUp(stats.total);
+  const animUnclaimed   = useCountUp(stats.unclaimed);
+
+  // ── No wallet ─────────────────────────────────────────────
   if (!userWallet) {
     return (
       <div className="rounded-2xl border border-white/10 bg-[#0b0b0f] p-4 space-y-3">
@@ -59,14 +193,13 @@ export default function VistaEarningsPanel({
     );
   }
 
-  if (finalEarnings === 0 && !isActive) return null;
-
   return (
     <div
       className={`rounded-2xl border bg-[#0b0b0f] p-4 space-y-4 transition-colors duration-300 ${
         flash ? "border-green-500/60" : "border-white/10"
       }`}
     >
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
@@ -88,20 +221,66 @@ export default function VistaEarningsPanel({
         )}
       </div>
 
-      <div>
-        <p className="text-xs uppercase tracking-wider text-green-400">Session Earnings</p>
-        <p
-          className={`mt-1 text-2xl font-semibold font-mono transition-colors duration-300 ${
-            flash ? "text-green-300" : "text-white"
-          }`}
-        >
-          {typeof finalEarnings === "number"
-            ? finalEarnings.toFixed(6)
-            : "0.000000"}{" "}
-          <span className="text-sm text-zinc-400">USDC</span>
-        </p>
+      {/* Live session earnings */}
+      {(isActive || finalEarnings > 0) && (
+        <div>
+          <p className="text-xs uppercase tracking-wider text-green-400">
+            Current Session
+          </p>
+          <p
+            className={`mt-1 text-2xl font-semibold font-mono transition-colors duration-300 ${
+              flash ? "text-green-300" : "text-white"
+            }`}
+          >
+            {typeof finalEarnings === "number"
+              ? finalEarnings.toFixed(6)
+              : "0.000000"}{" "}
+            <span className="text-sm text-zinc-400">USDC</span>
+          </p>
+        </div>
+      )}
+
+      {/* Historical stats */}
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+            Last Session
+          </p>
+          <p className="text-xs font-mono text-zinc-300">
+            {stats.loading ? (
+              <span className="inline-block h-3 w-14 animate-pulse rounded bg-white/10" />
+            ) : (
+              animLastSession.toFixed(6)
+            )}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 border-l border-white/10 pl-2">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+            Total Earned
+          </p>
+          <p className="text-xs font-mono text-zinc-300">
+            {stats.loading ? (
+              <span className="inline-block h-3 w-14 animate-pulse rounded bg-white/10" />
+            ) : (
+              animTotal.toFixed(6)
+            )}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 border-l border-white/10 pl-2">
+          <p className="text-[10px] uppercase tracking-wider text-green-400">
+            Unclaimed
+          </p>
+          <p className="text-xs font-mono font-semibold text-green-400">
+            {stats.loading ? (
+              <span className="inline-block h-3 w-14 animate-pulse rounded bg-green-400/10" />
+            ) : (
+              animUnclaimed.toFixed(6)
+            )}
+          </p>
+        </div>
       </div>
 
+      {/* Live tracking footer */}
       {isActive && (
         <div className="border-t border-white/5 pt-3 text-xs text-zinc-400">
           <p className="flex items-center gap-2">
